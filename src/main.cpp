@@ -2,13 +2,14 @@
 #include <signal.h>
 #include <cstring>
 
-#include "logger/logger.h"
+#include "logger/logger.hpp"
 
 int main()
 {
     constexpr std::chrono::milliseconds flushing_interval_ms(1000); 
     logger_helper::create_log_dir();
     logger_helper::inti_logger("logs/csv_parser", 1024 * 1024, 3, flushing_interval_ms);
+    spdlog::set_level(spdlog::level::level_enum::info);
     spdlog::info("CSV Parser started!");
     sigset_t mask {};
     int sig{};
