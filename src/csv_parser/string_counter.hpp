@@ -7,13 +7,13 @@ class StringCounter {
 public:
     StringCounter() : m_count("0") {}
     
-    std::string Get() const 
+    std::string get() const 
     {
         std::shared_lock lock(m_mutex);
         return m_count; 
     }
     
-    void Reset() 
+    void reset() 
     {
         std::unique_lock lock(m_mutex);
         m_count = "0";
@@ -22,10 +22,10 @@ public:
     void operator++()
     {
         std::unique_lock lock(m_mutex);
-        Increment();
+        increment();
     }
 private:
-    void Increment()
+    void increment()
     {
         for (int i = m_count.size() - 1; i >= 0; --i) 
         {
