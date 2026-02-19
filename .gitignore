@@ -1,0 +1,7 @@
+./logs
+./cmake+install.cmake
+./CMakeCache.txt
+./CMakeFiles
+./_deps
+./CVSParse
+./build
