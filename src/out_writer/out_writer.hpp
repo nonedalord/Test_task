@@ -13,13 +13,7 @@ template<typename T, typename Compare = std::less<>>
 class OutWriter
 {
 public:
-    OutWriter(u_int64_t max_elements, std::shared_ptr<ISerializer<T>> serializer, std::unique_ptr<IAlgorithm<T>> algorithm, Compare comp) : 
-    m_serializer(serializer), m_algorithm(std::move(algorithm)), m_queue(std::make_unique<ThreadPoolQueue>()), m_comp(comp), m_max_elements(max_elements) 
-    {
-        m_buff.reserve(m_max_elements);
-        m_queue->start_async(4);
-    }
-
+    OutWriter(u_int64_t max_elements, std::shared_ptr<ISerializer<T>> serializer, std::unique_ptr<IAlgorithm<T>> algorithm, Compare comp = Compare());
     ~OutWriter();
     void collect_data(std::vector<T>&& data);
     void write_data(const std::string& file_name);
@@ -41,3 +35,5 @@ private:
     std::vector<T> m_buff;
     u_int64_t m_max_elements;
 };
+
+#include "out_writer_impl.hpp"

@@ -1,21 +1,29 @@
-#include "out_writer.hpp"
 #include "../logger/logger.hpp"
 
 #include <algorithm>
 #include <queue>
 #include <string_view>
+#include <atomic>
 
 namespace
 {
     constexpr uint64_t binary_hash = 0x12345678;
 
-    std::string generate_file_name() 
+    inline std::string generate_file_name() 
     {
         static std::string base_name = "binary_data";
-        static int counter = 0;
+        static std::atomic<int> counter{0};
         return base_name + "_" + std::to_string(binary_hash) + "_" + std::to_string(counter++) + ".bin";
     }
 } //anonymous namespace
+
+template <typename T, typename Compare>
+OutWriter<T, Compare>::OutWriter(u_int64_t max_elements, std::shared_ptr<ISerializer<T>> serializer, std::unique_ptr<IAlgorithm<T>> algorithm, Compare comp) : 
+m_serializer(serializer), m_algorithm(std::move(algorithm)), m_queue(std::make_unique<ThreadPoolQueue>()), m_comp(comp), m_max_elements(max_elements) 
+{
+    m_buff.reserve(m_max_elements);
+    m_queue->start_async(4);
+}
 
 template <typename T, typename Compare>
 OutWriter<T, Compare>::~OutWriter()
@@ -57,7 +65,7 @@ void OutWriter<T, Compare>::write_data(const std::string& file_name)
     else
     {
         std::ranges::sort(m_buff, m_comp);
-        write_to_temporary(m_buff);
+        write_to_temporary(std::move(m_buff));
         m_buff.clear();
         m_algorithm->process_file(m_serializer, merge_sort(), file_name);
     }
