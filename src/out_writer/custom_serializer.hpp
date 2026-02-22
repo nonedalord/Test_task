@@ -1,6 +1,6 @@
 #pragma once
 #include "serializer.hpp"
-#include "./csv_parser/csv_parser.hpp"
+#include "../csv_parser/csv_parser.hpp"
 
 class ParserDataSerializer : public ISerializer<CsvParser::ParserData> 
 {
