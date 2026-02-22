@@ -5,7 +5,7 @@
 #include <fstream>
 #include <functional>
 
-CsvParser::CsvParser(u_int32_t max_threads = 4, u_int64_t total_space_to_use) : m_queue(std::make_unique<ThreadPoolQueue>()), 
+CsvParser::CsvParser(u_int64_t total_space_to_use, u_int32_t max_threads) : m_queue(std::make_unique<ThreadPoolQueue>()), 
 m_ready_data_queue(std::make_unique<ThreadQueue<std::vector<ParserData>>>()), m_total_task(0),
 m_vec_size(total_space_to_use / max_threads / sizeof(ParserData)), m_max_elements(total_space_to_use / sizeof(ParserData)), m_max_threads(max_threads)
 {
@@ -42,7 +42,7 @@ void CsvParser::add_file_to_parse(const std::string& file_name)
     {
         return;
     }
-    m_queue->push(std::bind(parse_csv_data, file_name));
+    m_queue->push(std::bind(&CsvParser::parse_csv_data, this, file_name));
     ++m_total_task;
 }
 
@@ -81,7 +81,7 @@ void CsvParser::parse_csv_data(const std::string& file_name)
         }
         try
         {
-            uint64_t time = std::stoull(tokens[0]);
+            u_int64_t time = std::stoull(tokens[0]);
             double price = std::stod(tokens[2]);
             if (data.size() == m_vec_size)
             {

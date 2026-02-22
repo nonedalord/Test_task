@@ -13,13 +13,13 @@
 class CsvParser
 {
 public:
-    explicit CsvParser(u_int32_t max_threads = 4, u_int64_t total_space_to_use);
+    explicit CsvParser(u_int64_t total_space_to_use, u_int32_t max_threads = 4);
     ~CsvParser();
     void add_file_to_parse(const std::string& file_path);
     struct ParserData
     {
         uint64_t receive_ts;
-        double median;
+        double price;
     };
     std::optional<std::vector<ParserData>> get_ready_data();
     inline uint32_t get_max_elements()
