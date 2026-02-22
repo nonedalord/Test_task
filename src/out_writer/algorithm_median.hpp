@@ -1,3 +1,5 @@
+#pragma once
+
 #include "algorithm.hpp"
 #include "../csv_parser/csv_parser.hpp"
 
