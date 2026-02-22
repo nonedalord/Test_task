@@ -1,4 +1,5 @@
 #pragma once
+
 #include "serializer.hpp"
 #include "../csv_parser/csv_parser.hpp"
 
