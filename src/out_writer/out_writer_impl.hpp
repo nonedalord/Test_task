@@ -18,7 +18,7 @@ namespace
 } //anonymous namespace
 
 template <typename T, typename Compare>
-OutWriter<T, Compare>::OutWriter(u_int64_t max_elements, std::shared_ptr<ISerializer<T>> serializer, std::unique_ptr<IAlgorithm<T>> algorithm, Compare comp) : 
+OutWriter<T, Compare>::OutWriter(uint64_t max_elements, std::shared_ptr<ISerializer<T>> serializer, std::unique_ptr<IAlgorithm<T>> algorithm, Compare comp) : 
 m_serializer(serializer), m_algorithm(std::move(algorithm)), m_queue(std::make_unique<ThreadPoolQueue>()), m_comp(comp), m_max_elements(max_elements) 
 {
     m_buff.reserve(m_max_elements);

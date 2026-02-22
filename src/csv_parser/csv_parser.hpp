@@ -13,7 +13,7 @@
 class CsvParser
 {
 public:
-    explicit CsvParser(u_int64_t total_space_to_use, u_int32_t max_threads = 4);
+    explicit CsvParser(uint64_t total_space_to_use, uint32_t max_threads = 4);
     ~CsvParser();
     void add_file_to_parse(const std::string& file_path);
     struct ParserData
@@ -37,8 +37,8 @@ private:
     std::thread m_task_wait_thread;
     std::condition_variable m_cv_wait_task;
     std::mutex m_wait_task_mutex;
-    u_int64_t m_vec_size {};
-    u_int64_t m_max_elements {};
+    uint64_t m_vec_size {};
+    uint64_t m_max_elements {};
     std::atomic<uint32_t> m_total_task;
     uint32_t m_max_threads {};
 };
