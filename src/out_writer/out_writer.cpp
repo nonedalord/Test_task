@@ -1,8 +1,7 @@
 #include "out_writer.hpp"
 #include "../logger/logger.hpp"
 
-#include <ranges>
-#include <fstream>
+#include <algorithm>
 #include <queue>
 #include <string_view>
 
@@ -17,15 +16,6 @@ namespace
         return base_name + "_" + std::to_string(binary_hash) + "_" + std::to_string(counter++) + ".bin";
     }
 } //anonymous namespace
-
-template<typename T, typename Compare>
-OutWriter<T, Compare>::OutWriter(u_int64_t max_elements, const std::string& out_file_name, std::shared_ptr<ISerializer<T>> serializer, std::unique_ptr<IAlgorithm<T>> algorithm, 
-    Compare comp = Compare()) : 
-m_serializer(serializer), m_algorithm(std::move(algorithm)), comp(comp), m_out_file_name(out_file_name), m_max_elements(max_elements) 
-{
-    m_buff.reserve(m_max_elements);
-    m_queue->start_async(4);
-}
 
 template <typename T, typename Compare>
 OutWriter<T, Compare>::~OutWriter()
@@ -56,7 +46,7 @@ void OutWriter<T, Compare>::write_data(const std::string& file_name)
         if (!m_buff.empty())
         {
             std::ranges::sort(m_buff, m_comp);
-            m_algorithm->process_in_memory(std::move(m_buff), m_out_file_name);
+            m_algorithm->process_in_memory(std::move(m_buff), file_name);
         }
         else
         {
@@ -69,7 +59,7 @@ void OutWriter<T, Compare>::write_data(const std::string& file_name)
         std::ranges::sort(m_buff, m_comp);
         write_to_temporary(m_buff);
         m_buff.clear();
-        m_algorithm->process_file(m_serializer, merge_sort(), m_out_file_name)
+        m_algorithm->process_file(m_serializer, merge_sort(), file_name);
     }
 }
 
@@ -159,7 +149,7 @@ void OutWriter<T, Compare>::write_to_temporary(std::vector<T>&& data)
     m_file_to_merge.push_back(file_name);
     m_queue->push([file_name = std::move(file_name), data = std::move(data), ser = m_serializer]()
     {
-        std::ofstream ofs(fname, std::ios::binary);
+        std::ofstream ofs(file_name, std::ios::binary);
         uint64_t size = data.size();
         ofs.write(reinterpret_cast<const char*>(&size), sizeof(size));
         for (const auto& item : data) 
