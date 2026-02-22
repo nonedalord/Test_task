@@ -14,7 +14,7 @@ m_vec_size(total_space_to_use / max_threads / sizeof(ParserData)), m_max_element
 
 CsvParser::~CsvParser()
 {
-    m_total_task.store(0, std::memory_order_acq_rel);
+    m_total_task.store(0, std::memory_order_release);
     m_cv_wait_task.notify_all();
     if (m_task_wait_thread.joinable())
     {
@@ -30,7 +30,7 @@ void CsvParser::wait_task_done()
         std::unique_lock<std::mutex> lock(m_wait_task_mutex);
         m_cv_wait_task.wait(lock, [this]
         {
-            return m_total_task.load(std::memory_order_acq_rel) == 0;
+            return m_total_task.load(std::memory_order_acquire) == 0;
         });
         m_queue->stop();
     });
