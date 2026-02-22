@@ -27,10 +27,10 @@ public:
         }
     }
 
-    void push(const T& value)
+    void push(T&& value)
     {
         std::unique_lock<std::mutex> lock(m_mutex);
-        m_queue.push(value);
+        m_queue.push(std::move(value));
         m_cv.notify_one();
     }
 
@@ -47,6 +47,13 @@ public:
         value = std::move(m_queue.front());
         m_queue.pop();
         return true;
+    }
+
+    void stop() 
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_stop_flag = true;
+        m_cv.notify_all();
     }
 
     bool empty() const
