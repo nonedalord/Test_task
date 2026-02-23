@@ -22,15 +22,15 @@ public:
         double price;
     };
     std::optional<std::vector<ParserData>> get_ready_data();
-    inline uint32_t get_max_elements()
+    void wait_task_done();
+    inline uint32_t get_max_elements() const
     {
         return m_max_elements;
     }
 private:
     void parse_csv_data(const std::string& file_name);
-    bool check_empty_file(const std::string& file_path);
-    void wait_task_done();
-    void notify_task();
+    bool check_empty_file(const std::string& file_path) const;
+    void notify_task(const std::string& file_name);
 
     std::unique_ptr<ThreadQueue<std::vector<ParserData>>> m_ready_data_queue;
     std::unique_ptr<ThreadPoolQueue> m_queue;
@@ -41,4 +41,5 @@ private:
     uint64_t m_max_elements {};
     std::atomic<uint32_t> m_total_task;
     uint32_t m_max_threads {};
+    bool is_task_counter_called = false;
 };

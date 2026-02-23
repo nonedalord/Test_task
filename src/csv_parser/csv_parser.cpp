@@ -5,11 +5,12 @@
 #include <fstream>
 #include <functional>
 
-CsvParser::CsvParser(u_int64_t total_space_to_use, u_int32_t max_threads) : m_queue(std::make_unique<ThreadPoolQueue>()), 
+CsvParser::CsvParser(uint64_t total_space_to_use, uint32_t max_threads) : m_queue(std::make_unique<ThreadPoolQueue>()), 
 m_ready_data_queue(std::make_unique<ThreadQueue<std::vector<ParserData>>>()), m_total_task(0),
 m_vec_size(total_space_to_use / max_threads / sizeof(ParserData)), m_max_elements(total_space_to_use / sizeof(ParserData)), m_max_threads(max_threads)
 {
     m_queue->start_async(m_max_threads);
+    spdlog::debug("CsvParser created");
 }
 
 CsvParser::~CsvParser()
@@ -22,18 +23,21 @@ CsvParser::~CsvParser()
     }
     m_queue->stop();
     m_ready_data_queue->delete_queue();
+    spdlog::debug("CsvParser destroyed");
 }
 
 void CsvParser::wait_task_done()
 {
+    spdlog::debug("Started waiting for the tasks to finish. Total tasks {}", m_total_task.load());
     m_task_wait_thread = std::thread([this] {
         std::unique_lock<std::mutex> lock(m_wait_task_mutex);
         m_cv_wait_task.wait(lock, [this]
         {
             return m_total_task.load(std::memory_order_acquire) == 0;
         });
-        m_queue->stop();
+        m_ready_data_queue->stop();
     });
+    spdlog::debug("All tasks finished. Queue is stopped!");
 }
 
 void CsvParser::add_file_to_parse(const std::string& file_name)
@@ -44,6 +48,7 @@ void CsvParser::add_file_to_parse(const std::string& file_name)
     }
     m_queue->push(std::bind(&CsvParser::parse_csv_data, this, file_name));
     ++m_total_task;
+    spdlog::debug("Added new task for file {}. Total tasks {}",file_name, m_total_task.load());
 }
 
 void CsvParser::parse_csv_data(const std::string& file_name)
@@ -54,14 +59,21 @@ void CsvParser::parse_csv_data(const std::string& file_name)
     std::ifstream file(file_name, std::ios::binary);
     if (!file.is_open()) 
     {
-        notify_task();
         spdlog::error("Cannot open file: {}", file_name);
+        notify_task(file_name);
+        return;
+    }
+    spdlog::info("Started to parse file {}", file_name);
+    std::string line {};
+
+    if (!std::getline(file, line))
+    {
+        spdlog::error("File {} is empty or cannot read header", file_name);
+        notify_task(file_name);
         return;
     }
 
-    std::string line {};
-
-    u_int64_t line_num = 0;
+    uint64_t line_num = 1;
     while (std::getline(file, line))
     {
         ++line_num;
@@ -74,14 +86,14 @@ void CsvParser::parse_csv_data(const std::string& file_name)
             tokens.push_back(token);
         }
 
-        if (tokens.size() != 6)
+        if (tokens.size() < 5)
         {
             spdlog::error("File {} have incorrect line {}", file_name, line_num);
             continue;
         }
         try
         {
-            u_int64_t time = std::stoull(tokens[0]);
+            uint64_t time = std::stoull(tokens[0]);
             double price = std::stod(tokens[2]);
             if (data.size() == m_vec_size)
             {
@@ -100,13 +112,14 @@ void CsvParser::parse_csv_data(const std::string& file_name)
     {
         m_ready_data_queue->push(std::move(data));
     }
-    notify_task();
+    notify_task(file_name);
 }
 
-void CsvParser::notify_task()
+void CsvParser::notify_task(const std::string& file_name)
 {
     m_total_task.fetch_sub(1, std::memory_order_relaxed);
     m_cv_wait_task.notify_all();
+    spdlog::debug("Task finished for file {}. Tasks left {}", file_name, m_total_task.load());
 }
 
 std::optional<std::vector<CsvParser::ParserData>> CsvParser::get_ready_data()
@@ -119,7 +132,7 @@ std::optional<std::vector<CsvParser::ParserData>> CsvParser::get_ready_data()
     return std::nullopt;
 }
 
-bool CsvParser::check_empty_file(const std::string& file_path)
+bool CsvParser::check_empty_file(const std::string& file_path) const
 {
     if (std::filesystem::is_empty(file_path))
     {
