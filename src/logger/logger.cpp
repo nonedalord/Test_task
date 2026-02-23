@@ -1,11 +1,11 @@
 #include "logger.hpp"
 
+#include <spdlog/sinks/stdout_sinks.h>
+#include <spdlog/sinks/rotating_file_sink.h>
+
 #include <memory>
 #include <vector>
 #include <string>
-
-#include <spdlog/sinks/stdout_sinks.h>
-#include <spdlog/sinks/rotating_file_sink.h>
 
 namespace logger_helper
 {

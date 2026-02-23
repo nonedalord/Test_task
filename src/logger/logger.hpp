@@ -1,4 +1,7 @@
+#pragma once
+
 #include <spdlog/spdlog.h>
+
 #include <filesystem>
 
 namespace logger_helper
