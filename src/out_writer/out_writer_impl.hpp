@@ -23,12 +23,14 @@ m_serializer(serializer), m_algorithm(std::move(algorithm)), m_queue(std::make_u
 {
     m_buff.reserve(m_max_elements);
     m_queue->start_async(4);
+    spdlog::debug("OutWriter created");
 }
 
 template <typename T, typename Compare>
 OutWriter<T, Compare>::~OutWriter()
 {
     m_queue->stop();
+    spdlog::debug("OutWriter destroyed");
 }
 
 template<typename T, typename Compare>
@@ -53,8 +55,16 @@ void OutWriter<T, Compare>::write_data(const std::string& file_name)
     {
         if (!m_buff.empty())
         {
+            spdlog::info("In memory model was chosen");
             std::ranges::sort(m_buff, m_comp);
-            m_algorithm->process_in_memory(std::move(m_buff), file_name);
+            try
+            {
+                m_algorithm->process_in_memory(std::move(m_buff), file_name);
+            }
+            catch (const std::exception& err)
+            {
+                spdlog::error("Error occurred while running the algorithm: {}", err.what());
+            }
         }
         else
         {
@@ -64,25 +74,39 @@ void OutWriter<T, Compare>::write_data(const std::string& file_name)
     }
     else
     {
+        spdlog::info("File model was chosen");
         std::ranges::sort(m_buff, m_comp);
         write_to_temporary(std::move(m_buff));
         m_buff.clear();
-        m_algorithm->process_file(m_serializer, merge_sort(), file_name);
+        std::string out_put_file = merge_sort();
+        if (out_put_file.empty())
+        {
+            return;
+        }
+        try 
+        {
+            m_algorithm->process_file(m_serializer, merge_sort(), file_name);
+        }
+        catch (const std::exception& err)
+        {
+            spdlog::error("Error occurred while running the algorithm: {}", err.what());
+        }
     }
 }
 
 template<typename T, typename Compare>
 std::string OutWriter<T, Compare>::merge_sort()
 {
+    spdlog::debug("Stated to merge files");
     std::vector<FileStream> streams;
     streams.reserve(m_file_to_merge.size());
 
-    for (const auto& fname : m_file_to_merge)
+    for (const auto& file_name : m_file_to_merge)
     {
-        std::ifstream ifs(fname, std::ios::binary);
+        std::ifstream ifs(file_name, std::ios::binary);
         if (!ifs.is_open())
         {
-            spdlog::error("Cannot open temporary file {}", fname);
+            spdlog::error("Cannot open temporary file {}", file_name);
             continue;
         }
         uint64_t total_elements = 0;
@@ -96,7 +120,7 @@ std::string OutWriter<T, Compare>::merge_sort()
     if (streams.empty()) 
     {
         spdlog::error("No data to merge");
-        return "";
+        return std::string();
     }
 
     auto heap_cmp = [this](const FileStream* a, const FileStream* b) 
@@ -137,9 +161,17 @@ std::string OutWriter<T, Compare>::merge_sort()
     out.seekp(0);
     out.write(reinterpret_cast<const char*>(&total), sizeof(total));
 
-    for (const auto& fname : m_file_to_merge) 
+    for (const auto& file_name : m_file_to_merge) 
     {
-        std::filesystem::remove(fname);
+        try 
+        {
+            std::filesystem::remove(file_name);
+            spdlog::debug("Temporary file removed {}", file_name);
+        }
+        catch(const std::exception& err)
+        {
+            spdlog::warn("Error while deleting temporary file {}", file_name);
+        }
     }
     m_file_to_merge.clear();
     return file_name;
@@ -154,7 +186,11 @@ void OutWriter<T, Compare>::write_to_temporary(std::vector<T>&& data)
         return;
     }
     std::string file_name = generate_file_name();
-    m_file_to_merge.push_back(file_name);
+    
+    {
+        std::unique_lock lock(m_mutex);
+        m_file_to_merge.push_back(file_name);
+    }
     m_queue->push([file_name = std::move(file_name), data = std::move(data), ser = m_serializer]()
     {
         std::ofstream ofs(file_name, std::ios::binary);
@@ -164,5 +200,6 @@ void OutWriter<T, Compare>::write_to_temporary(std::vector<T>&& data)
         {
             ser->write(ofs, item);
         }
+        spdlog::debug("Created temporary file: {}", file_name);
     });
 }

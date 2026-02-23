@@ -8,12 +8,13 @@
 #include <cstdint>
 #include <string>
 #include <fstream>
+#include <mutex>
 
 template<typename T, typename Compare = std::less<>>
 class OutWriter
 {
 public:
-    OutWriter(u_int64_t max_elements, std::shared_ptr<ISerializer<T>> serializer, std::unique_ptr<IAlgorithm<T>> algorithm, Compare comp = Compare());
+    OutWriter(uint64_t max_elements, std::shared_ptr<ISerializer<T>> serializer, std::unique_ptr<IAlgorithm<T>> algorithm, Compare comp = Compare());
     ~OutWriter();
     void collect_data(std::vector<T>&& data);
     void write_data(const std::string& file_name);
@@ -27,13 +28,15 @@ private:
 
     void write_to_temporary(std::vector<T>&& data);
     std::string merge_sort();
+
     std::shared_ptr<ISerializer<T>>  m_serializer;
     std::unique_ptr<IAlgorithm<T>> m_algorithm;
     std::unique_ptr<ThreadPoolQueue> m_queue;
     std::vector<std::string> m_file_to_merge;
+    std::mutex m_mutex;
     Compare m_comp;
     std::vector<T> m_buff;
-    u_int64_t m_max_elements;
+    uint64_t m_max_elements;
 };
 
 #include "out_writer_impl.hpp"
