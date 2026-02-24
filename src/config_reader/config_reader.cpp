@@ -5,12 +5,16 @@
 #include <stdexcept>
 #include <iostream>
 
-ConfigReader::Config ConfigReader::load_from_file(const std::filesystem::path& filepath) 
+ConfigReader::Config ConfigReader::load_from_file(const std::filesystem::path& file_path) 
 {
+    if (!std::filesystem::exists(file_path)) 
+    {
+        throw std::runtime_error("Config file not found: " + file_path.string());
+    }
     toml::parse_result result;
     try 
     {
-        result = toml::parse_file(filepath.string());
+        result = toml::parse_file(file_path.string());
     } 
     catch (const toml::parse_error& err) 
     {
