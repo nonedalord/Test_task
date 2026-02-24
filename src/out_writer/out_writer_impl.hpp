@@ -18,11 +18,11 @@ namespace
 } //anonymous namespace
 
 template <typename T, typename Compare>
-OutWriter<T, Compare>::OutWriter(uint64_t max_elements, std::shared_ptr<ISerializer<T>> serializer, std::unique_ptr<IAlgorithm<T>> algorithm, Compare comp) : 
+OutWriter<T, Compare>::OutWriter(uint64_t max_elements, std::shared_ptr<ISerializer<T>> serializer, std::shared_ptr<IAlgorithm<T>> algorithm, Compare comp, uint32_t max_threads) : 
 m_serializer(serializer), m_algorithm(std::move(algorithm)), m_queue(std::make_unique<ThreadPoolQueue>()), m_comp(comp), m_max_elements(max_elements) 
 {
     m_buff.reserve(m_max_elements);
-    m_queue->start_async(4);
+    m_queue->start_async(max_threads);
     spdlog::debug("OutWriter created");
 }
 
@@ -78,6 +78,7 @@ void OutWriter<T, Compare>::write_data(const std::string& file_name)
         std::ranges::sort(m_buff, m_comp);
         write_to_temporary(std::move(m_buff));
         m_buff.clear();
+        m_queue->wait_for_pending();
         std::string out_put_file = merge_sort();
         if (out_put_file.empty())
         {
@@ -85,7 +86,7 @@ void OutWriter<T, Compare>::write_data(const std::string& file_name)
         }
         try 
         {
-            m_algorithm->process_file(m_serializer, merge_sort(), file_name);
+            m_algorithm->process_file(m_serializer, out_put_file, file_name);
         }
         catch (const std::exception& err)
         {
@@ -187,10 +188,7 @@ void OutWriter<T, Compare>::write_to_temporary(std::vector<T>&& data)
     }
     std::string file_name = generate_file_name();
     
-    {
-        std::unique_lock lock(m_mutex);
-        m_file_to_merge.push_back(file_name);
-    }
+    m_file_to_merge.push_back(file_name);
     m_queue->push([file_name = std::move(file_name), data = std::move(data), ser = m_serializer]()
     {
         std::ofstream ofs(file_name, std::ios::binary);
