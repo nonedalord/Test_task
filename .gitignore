@@ -1,0 +1,9 @@
+logs
+cmake_install.cmake
+CMakeCache.txt
+CMakeFiles
+_deps
+CVSParse
+build
+Makefile
+.vscode
