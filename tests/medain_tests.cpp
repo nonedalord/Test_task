@@ -1,14 +1,15 @@
-#include <gtest/gtest.h>
-#include <filesystem>
-#include <fstream>
-#include <cstdlib>
-#include <ctime>
 
 #include "../src/out_writer/out_writer.hpp"
 #include "../src/out_writer/custom_serializer.hpp"
 #include "../src/out_writer/algorithm_median.hpp"
 #include "../src/csv_parser/csv_parser.hpp"
 
+#include <gtest/gtest.h>
+
+#include <filesystem>
+#include <fstream>
+#include <cstdlib>
+#include <ctime>
 
 class MedianCalculationTest : public ::testing::Test 
 {
