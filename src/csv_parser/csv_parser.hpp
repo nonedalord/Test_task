@@ -35,8 +35,6 @@ private:
     std::unique_ptr<ThreadQueue<std::vector<ParserData>>> m_ready_data_queue;
     std::unique_ptr<ThreadPoolQueue> m_queue;
     std::thread m_task_wait_thread;
-    std::condition_variable m_cv_wait_task;
-    std::mutex m_wait_task_mutex;
     uint64_t m_vec_size {};
     uint64_t m_max_elements {};
     std::atomic<uint32_t> m_total_task;

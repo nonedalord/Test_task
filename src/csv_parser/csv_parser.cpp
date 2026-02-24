@@ -16,13 +16,12 @@ m_vec_size(total_space_to_use / max_threads / sizeof(ParserData)), m_max_element
 CsvParser::~CsvParser()
 {
     m_total_task.store(0, std::memory_order_release);
-    m_cv_wait_task.notify_all();
+    m_queue->stop();
+    m_ready_data_queue->delete_queue();
     if (m_task_wait_thread.joinable())
     {
         m_task_wait_thread.join();
     }
-    m_queue->stop();
-    m_ready_data_queue->delete_queue();
     spdlog::debug("CsvParser destroyed");
 }
 
@@ -30,14 +29,10 @@ void CsvParser::wait_task_done()
 {
     spdlog::debug("Started waiting for the tasks to finish. Total tasks {}", m_total_task.load());
     m_task_wait_thread = std::thread([this] {
-        std::unique_lock<std::mutex> lock(m_wait_task_mutex);
-        m_cv_wait_task.wait(lock, [this]
-        {
-            return m_total_task.load(std::memory_order_acquire) == 0;
-        });
+        m_queue->wait_for_pending();
         m_ready_data_queue->stop();
+        spdlog::debug("All tasks finished. Queue is stopped!");
     });
-    spdlog::debug("All tasks finished. Queue is stopped!");
 }
 
 void CsvParser::add_file_to_parse(const std::string& file_name)
@@ -118,7 +113,6 @@ void CsvParser::parse_csv_data(const std::string& file_name)
 void CsvParser::notify_task(const std::string& file_name)
 {
     m_total_task.fetch_sub(1, std::memory_order_relaxed);
-    m_cv_wait_task.notify_all();
     spdlog::debug("Task finished for file {}. Tasks left {}", file_name, m_total_task.load());
 }
 
