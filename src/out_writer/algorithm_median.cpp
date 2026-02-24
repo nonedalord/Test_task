@@ -12,6 +12,9 @@
 
 void MedianAlgorithm::process_in_memory(std::vector<CsvParser::ParserData>&& sorted_data, const std::string& output_file)
 {
+    std::filesystem::path out_path(output_file);
+    std::filesystem::create_directories(out_path.parent_path());
+
     std::ofstream out(output_file);
     if (!out.is_open()) 
     {
@@ -67,13 +70,14 @@ void MedianAlgorithm::process_in_memory(std::vector<CsvParser::ParserData>&& sor
             first = false;
         }
     }
+    spdlog::info("Results are written to a file {}", output_file);
 }
 
 void MedianAlgorithm::process_file(const std::shared_ptr<ISerializer<CsvParser::ParserData>> serializer, const std::string& sorted_input_file, const std::string& output_file)
 {
     using namespace boost::accumulators;
 
-    accumulator_set<double, stats<tag::median(with_p_square_quantile)>> acc;
+    accumulator_set<double, stats<tag::median>> acc;
     std::vector<double> buffer;
     constexpr size_t buffer_size = 5;
     buffer.reserve(buffer_size);
@@ -81,12 +85,25 @@ void MedianAlgorithm::process_file(const std::shared_ptr<ISerializer<CsvParser::
     std::ifstream in(sorted_input_file, std::ios::binary);
     if (!in.is_open())
     {
+        delete_process_file(sorted_input_file);
         throw std::runtime_error("Cannot open input file: " + sorted_input_file);
     }
 
+    uint64_t total_elements = 0;
+    in.read(reinterpret_cast<char*>(&total_elements), sizeof(total_elements));
+
+    if (total_elements == 0)
+    {
+        delete_process_file(sorted_input_file);
+        throw std::runtime_error("Input file " + sorted_input_file + " is empty");
+    }
+    
+    std::filesystem::path out_path(output_file);
+    std::filesystem::create_directories(out_path.parent_path());
     std::ofstream out(output_file);
     if (!out.is_open())
     {
+        delete_process_file(sorted_input_file);
         throw std::runtime_error("Cannot create output file: " + output_file);
     }
 
@@ -109,6 +126,7 @@ void MedianAlgorithm::process_file(const std::shared_ptr<ISerializer<CsvParser::
             }
             std::streamoff pos = in.tellg();
             spdlog::info("Results are written to a file {}", output_file);
+            delete_process_file(sorted_input_file);
             throw std::runtime_error("Read error at position: " + pos);
         }
 
@@ -151,6 +169,7 @@ void MedianAlgorithm::process_file(const std::shared_ptr<ISerializer<CsvParser::
             }
             std::streamoff pos = in.tellg();
             spdlog::info("Results are written to a file {}", output_file);
+            delete_process_file(sorted_input_file);
             throw std::runtime_error("Read error at position: " + pos);
         }
 
@@ -163,5 +182,19 @@ void MedianAlgorithm::process_file(const std::shared_ptr<ISerializer<CsvParser::
             last_median = current_median;
         }
     }
+    delete_process_file(sorted_input_file);
     spdlog::info("Results are written to a file {}", output_file);
+}
+
+void MedianAlgorithm::delete_process_file(const std::string& file_name)
+{
+    try 
+    {
+        std::filesystem::remove(file_name);
+        spdlog::debug("Temporary file removed {}", file_name);
+    }
+    catch(const std::exception& err)
+    {
+        spdlog::warn("Error while deleting temporary file {}", file_name);
+    }
 }
