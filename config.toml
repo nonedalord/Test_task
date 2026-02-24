@@ -1,0 +1,4 @@
+[main]
+	input = './tests'
+	output = './output'
+	filename_mask = ['trades']
